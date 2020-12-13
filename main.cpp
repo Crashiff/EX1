@@ -1,93 +1,196 @@
-#include "county.h"
-#include "party.h"`
-#include "person.h"
-#include "registry.h"
-#include "state.h"
-#include "iostream"
-
-using namespace ELC;
+#include <iostream>
+#include "District.h"
+#include "Election.h"
+#include "Citizen.h"
+#include "PartyArray.h"
+#include "Party.h"
+#include "replist.h"
+#include "replistArray.h"
+#include "CitizenList.h"
+const constexpr int MaxNameSize = 1000;
 using namespace std;
+using namespace ELC;
 
-void menu()
+void addDistrict(Election& round)
 {
-    bool flag = true;
+	char name[MaxNameSize];
+	int numRep;
+	cout << "Please enter district name: " << endl;
+	cin >> name;
+	cout << "Please enter the number of representitives: " << endl;
+	cin >> numRep;
 
-    while (flag)
-    {
-        cout << "main menu :" << endl;
-        cout << "1. addcounty. " << endl;
-        cout << "2. addperon. " << endl;
-        cout << "3. addparty. " << endl;
-        cout << "4. print all county " << endl;
-        cout << "5. print registry " << endl;
-        cout << "6. print all parties " << endl;
-        cout << "7. vote " << endl;
-        cout << "8. show results " << endl;
-        cout << "9. Exit " << endl;
+	DistrictArray& arr = round.getDistrictArray();
+	District d = District(name, numRep);
+	arr.addDistrict(d);
+}
 
-        int op;
-        cin >> op;
+void addCitizen(Election& round)
+{
+	char name[MaxNameSize];
+	int ID, birthYear, districtID;
+	cout << "Please enter citizen name: " << endl;
+	cin >> name;
+	cout << "Please enter the citizen's ID: " << endl;
+	cin >> ID;
+	cout << "Please enter the citizen's birthYear: " << endl;
+	cin >> birthYear;
+	cout << "Please enter the citizen's district ID: " << endl;
+	cin >> districtID;
 
-        switch (op)
-        {
-        case 1:
-            cout << "enter county name and number of reps :" << endl;
-            int repnum;
-            char *name = new char[5];
-            cin >> name;
-            cin >> repnum;
-            // code
-            break;
-        case 2:
-            cout << "enter name , id , year of birth and county number" << endl;
-            int id, YOB, cou_num;
-            char *name = new char[20]; // better in a more accurate function
-            cin >> name;
-            cin >> id >> YOB >> cou_num;
-            // code
-            break;
-        case 3:
-            char *name = new char[5];
-            int id;
-            cout << "enter party name and leader id " << endl;
-            cin >> name;
-            cin >> id;
-            // code
-            break;
-        case 4:
-            cout << "enter new rep id, serial number of the party and county" << endl;
-            int id, party, county;
-            cin >> id >> party >> county;
-            // code
-            break;
-        case 5:
-            //code
-            break;
-        case 6:
-            // code
-            break;
-        case 7:
-            // code
-            break;
-        case 8:
-            // code
-            break;
-        case 9:
-            // code
-            break;
-        case 10:
-            flag = false;
-            break;
+	DistrictArray arr = round.getDistrictArray();
+	int districtsNum = arr.getnum_of_districts();
+	if (!(0 < districtID && districtID <= districtsNum)) /*If district ID is NOT in correct range - fail and return*/
+	{
+		cout << "District doesn't exist, citizen addition failed" << endl;
+		return;
+	}
+	District& district = arr.getDistrict(districtID);
+	CitizenList& lst = round.getCitizenList();
+	Citizen c(name, ID, birthYear, district);
+	lst.addCitizen(c); 
+}
 
-        default:
-            break;
-        } // switch
+void addParty(Election& round)
+{
+	char partyName[MaxNameSize];
+	int candidateID;
+	cout << "Please enter the party's name: " << endl;
+	cin >> partyName;
+	cout << "Please enter the ID of the candidate for head of state: " << endl;
+	cin >> candidateID;
 
-    } // while loop
+	PartyArray& arr = round.getPartyArray();
+	CitizenList& lst = round.getCitizenList();
+
+	Citizen& c = lst.getCitizen(candidateID);
+	arr.addParty(Party(partyName, c)); /*to be received as reference*/
+}
+
+void addCitizenAsRep(Election& round)
+{
+	int ID, PartyID, districtID;
+	cout << "Please enter the candidate's ID: " << endl;
+	cin >> ID;
+	cout << "Please enter the party's number: " << endl;
+	cin >> PartyID;
+	cout << "Please enter the district's number: " << endl;
+	cin >> districtID;
+	
+	CitizenList& citizenList = round.getCitizenList();
+	PartyArray& partyArr = round.getPartyArray();
+	DistrictArray& distArr = round.getDistrictArray();
+
+	Citizen& representative = citizenList.getCitizen(ID); /*ADD RETURN OF NOT FOUND*/
+	Party& party = partyArr.getParty(PartyID); /*party is an array of parties, PartyID is also used as index (-1 for 0)*/ /*ADD RETURN IF NOT FOUND*/
+	District& district = distArr.getDistrict(districtID); /*ADD RETURN IF NOT FOUND*/
+
+	/*Add citizen to party, to the correct list with districtID*/
+	replistArray listsArr = party.getReplistArray();
+	listsArr.addRepresentative(representative, district);
+}
+
+void showAllDistricts(Election& round)
+{
+	int i;
+
+	DistrictArray arr = round.getDistrictArray();
+	for (i = 0; i < arr.size; i++)
+		cout << arr.getDistrict(i) << endl;
+}
+
+void showAllCitizens(Election& round)
+{
+	CitizenList& CitizenList = round.getCitizenList();
+	cout << CitizenList << endl; /*Print by ID also possible - used in inner implementation*/
+}
+
+void showAllParties(Election& round)
+{
+	int PartyID, size;
+
+	PartyArray& arr = round.getPartyArray();
+	size = arr.getLogicSize();
+	for (PartyID = 0; PartyID < size; PartyID++)
+		cout << arr.getParty(PartyID) << endl;
+}
+
+void vote(Election& round)
+{
+	int ID, PartyID;
+	cout << "Please enter the voter's ID: " << endl;
+	cin >> ID;
+	cout << "Please enter the voter's party ID: " << endl;
+	cin >> PartyID;
+
+	CitizenList& citizenList = round.getCitizenList();
+	PartyArray& arr = round.getPartyArray();
+
+	Citizen& c = citizenList.find(ID);
+	Party& p = arr.getParty(PartyID);
+	p.vote(c); /*Try to vote, if unsuccesful - tell user*/
+}
+
+void showVotingRes()
+{
+	
+}
+
+void exitFunc()
+{
+	/*Might be unnecessary*/
+	cout << "This voting round has finished, program will now exit" << endl;
+}
+
+
+/***************************************************************/
+/**************THE MAIN MENU AND MAIN FUNCTION******************/
+/***************************************************************/
+void mainMenu(Election& round)
+{
+	cout << "1. Add district" << endl;
+	cout << "2. Add citizen" << endl;
+	cout << "3. Add party" << endl;
+	cout << "4. Add citizen as party representetive" << endl;
+	cout << "5. Show all districts" << endl;
+	cout << "6. Show all citizens" << endl;
+	cout << "7. Show all parties" << endl;
+	cout << "8. Vote" << endl;
+	cout << "9. Show voting results" << endl;
+	cout << "10. Exit program" << endl;
+
+	while (true)
+	{
+		int op;
+		cin >> op;
+
+		switch (op)
+		{
+			case 1: addDistrict(round); break;
+			case 2: addCitizen(round); break;
+			case 3: addParty(round); break;
+			case 4: addCitizenAsRep(round); break;
+			case 5: showAllDistricts(round); break;
+			case 6: showAllCitizens(round); break;
+			case 7: showAllParties(round); break;
+			case 8: vote(round); break;
+			case 9: showVotingRes(); break;
+			case 10: exitFunc(); return;
+
+			/*Bad input massage as default for anything else*/
+			default: cout << "You tried to enter an invalid number for an operation" << endl;
+		}
+	}
 }
 
 int main()
 {
+	Election round;
 
-    menu();
+	Date& date = round.getDate();
+	date.setDate(2020, 03, 16);
+	cout << date << endl;
+
+	mainMenu(round);
+	cout << "Good afternoon, good evening and good night" << endl;
 }
